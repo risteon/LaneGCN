@@ -363,18 +363,19 @@ class ArgoTestDataset(ArgoDataset):
 
         self.config = config
         self.train = train
-        split2 = config['val_split'] if split=='val' else config['test_split']
-        split = self.config['preprocess_val'] if split=='val' else self.config['preprocess_test']
-
-        self.avl = ArgoverseForecastingLoader(split2)
+        # raw argoverse data
+        split_dir = self.config['val_split'] if split == 'val' else self.config['test_split']
+        self.avl = ArgoverseForecastingLoader(split_dir)
         self.avl.seq_list = sorted(self.avl.seq_list)
+
         if 'preprocess' in config and config['preprocess']:
+            split_file = self.config['preprocess_val'] if split == 'val'\
+                else self.config['preprocess_test']
             if train:
-                self.split = np.load(split, allow_pickle=True)
+                self.split = np.load(split_file, allow_pickle=True)
             else:
-                self.split = np.load(split, allow_pickle=True)
+                self.split = np.load(split_file, allow_pickle=True)
         else:
-            self.avl = ArgoverseForecastingLoader(split)
             self.am = ArgoverseMap()
             
 
