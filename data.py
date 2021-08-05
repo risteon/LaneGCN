@@ -11,12 +11,14 @@ import copy
 from argoverse.data_loading.argoverse_forecasting_loader import ArgoverseForecastingLoader
 from argoverse.map_representation.map_api import ArgoverseMap
 from skimage.transform import rotate
+from preprocess_common import preprocess, gpu, to_long
 
 
 class ArgoDataset(Dataset):
-    def __init__(self, split, config, train=True):
+    def __init__(self, split, config, train=True, online_preprocess=False):
         self.config = config
         self.train = train
+        self.online_preprocess = online_preprocess
         
         if 'preprocess' in config and config['preprocess']:
             if train:
@@ -96,8 +98,47 @@ class ArgoDataset(Dataset):
             return data
 
         data['graph'] = self.get_lane_graph(data)
+
+        if self.online_preprocess:
+            data = self.do_online_preprocess(data)
+
         return data
-    
+
+    def do_online_preprocess(self, data):
+        """
+        offline preprocess:
+        * put data in 'stores' (int16?) => later get's converted to long again?
+        *
+        """
+        from preprocess_data import ref_copy
+
+        def make_stores(data):
+            return data
+
+        def preprocess_reorder(data):
+            graph = dict()
+            for key in [
+                "lane_idcs",
+                "ctrs",
+                "pre_pairs",
+                "suc_pairs",
+                "left_pairs",
+                "right_pairs",
+                "feats",
+            ]:
+                graph[key] = ref_copy(data["graph"][key])
+            graph["idx"] = data["idx"]
+
+            graph = from_numpy(graph)
+
+            graph_out = preprocess(to_long(gpu(graph)), self.config['cross_dist'])
+
+            data["graph"]["left"] = graph_out["left"]
+            data["graph"]["right"] = graph_out["right"]
+            return data
+
+        return preprocess_reorder(make_stores(data))
+
     def __len__(self):
         if 'preprocess' in self.config and self.config['preprocess']:
             return len(self.split)
@@ -359,10 +400,11 @@ class ArgoDataset(Dataset):
 
 
 class ArgoTestDataset(ArgoDataset):
-    def __init__(self, split, config, train=False):
+    def __init__(self, split, config, train=False, online_preprocess=False):
 
         self.config = config
         self.train = train
+        self.online_preprocess = online_preprocess
         # raw argoverse data
         split_dir = self.config['val_split'] if split == 'val' else self.config['test_split']
         self.avl = ArgoverseForecastingLoader(split_dir)
@@ -378,52 +420,52 @@ class ArgoTestDataset(ArgoDataset):
         else:
             self.am = ArgoverseMap()
             
-
-    def __getitem__(self, idx):
-        if 'preprocess' in self.config and self.config['preprocess']:
-            data = self.split[idx]
-            data['argo_id'] = int(self.avl.seq_list[idx].name[:-4]) #160547
-
-            if self.train and self.config['rot_aug']:
-                #TODO: Delete Here because no rot_aug
-                new_data = dict()
-                for key in ['orig', 'gt_preds', 'has_preds']:
-                    new_data[key] = ref_copy(data[key])
-
-                dt = np.random.rand() * self.config['rot_size']#np.pi * 2.0
-                theta = data['theta'] + dt
-                new_data['theta'] = theta
-                new_data['rot'] = np.asarray([
-                    [np.cos(theta), -np.sin(theta)],
-                    [np.sin(theta), np.cos(theta)]], np.float32)
-
-                rot = np.asarray([
-                    [np.cos(-dt), -np.sin(-dt)],
-                    [np.sin(-dt), np.cos(-dt)]], np.float32)
-                new_data['feats'] = data['feats'].copy()
-                new_data['feats'][:, :, :2] = np.matmul(new_data['feats'][:, :, :2], rot)
-                new_data['ctrs'] = np.matmul(data['ctrs'], rot)
-
-                graph = dict()
-                for key in ['num_nodes', 'turn', 'control', 'intersect', 'pre', 'suc', 'lane_idcs', 'left_pairs', 'right_pairs']:
-                    graph[key] = ref_copy(data['graph'][key])
-                graph['ctrs'] = np.matmul(data['graph']['ctrs'], rot)
-                graph['feats'] = np.matmul(data['graph']['feats'], rot)
-                new_data['graph'] = graph
-                data = new_data
-            else:
-                new_data = dict()
-                for key in ['orig', 'gt_preds', 'has_preds', 'theta', 'rot', 'feats', 'ctrs', 'graph','argo_id','city']:
-                    if key in data:
-                        new_data[key] = ref_copy(data[key])
-                data = new_data
-            return data
-
-        data = self.read_argo_data(idx)
-        data = self.get_obj_feats(data)
-        data['graph'] = self.get_lane_graph(data)
-        data['idx'] = idx
-        return data
+    # Todo: this might be the same as in base implementation
+    # def __getitem__(self, idx):
+    #     if 'preprocess' in self.config and self.config['preprocess']:
+    #         data = self.split[idx]
+    #         data['argo_id'] = int(self.avl.seq_list[idx].name[:-4]) #160547
+    #
+    #         if self.train and self.config['rot_aug']:
+    #             #TODO: Delete Here because no rot_aug
+    #             new_data = dict()
+    #             for key in ['orig', 'gt_preds', 'has_preds']:
+    #                 new_data[key] = ref_copy(data[key])
+    #
+    #             dt = np.random.rand() * self.config['rot_size']#np.pi * 2.0
+    #             theta = data['theta'] + dt
+    #             new_data['theta'] = theta
+    #             new_data['rot'] = np.asarray([
+    #                 [np.cos(theta), -np.sin(theta)],
+    #                 [np.sin(theta), np.cos(theta)]], np.float32)
+    #
+    #             rot = np.asarray([
+    #                 [np.cos(-dt), -np.sin(-dt)],
+    #                 [np.sin(-dt), np.cos(-dt)]], np.float32)
+    #             new_data['feats'] = data['feats'].copy()
+    #             new_data['feats'][:, :, :2] = np.matmul(new_data['feats'][:, :, :2], rot)
+    #             new_data['ctrs'] = np.matmul(data['ctrs'], rot)
+    #
+    #             graph = dict()
+    #             for key in ['num_nodes', 'turn', 'control', 'intersect', 'pre', 'suc', 'lane_idcs', 'left_pairs', 'right_pairs']:
+    #                 graph[key] = ref_copy(data['graph'][key])
+    #             graph['ctrs'] = np.matmul(data['graph']['ctrs'], rot)
+    #             graph['feats'] = np.matmul(data['graph']['feats'], rot)
+    #             new_data['graph'] = graph
+    #             data = new_data
+    #         else:
+    #             new_data = dict()
+    #             for key in ['orig', 'gt_preds', 'has_preds', 'theta', 'rot', 'feats', 'ctrs', 'graph','argo_id','city']:
+    #                 if key in data:
+    #                     new_data[key] = ref_copy(data[key])
+    #             data = new_data
+    #         return data
+    #
+    #     data = self.read_argo_data(idx)
+    #     data = self.get_obj_feats(data)
+    #     data['graph'] = self.get_lane_graph(data)
+    #     data['idx'] = idx
+    #     return data
     
     def __len__(self):
         if 'preprocess' in self.config and self.config['preprocess']:

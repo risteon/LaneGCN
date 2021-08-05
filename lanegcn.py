@@ -63,13 +63,20 @@ config["test_split"] = os.path.join(root_path, "dataset/test_obs/data")
 
 # Preprocessed Dataset
 config["preprocess"] = True # whether use preprocess or not
-config["preprocess_train"] = os.path.join(
-    root_path, "dataset","preprocess", "train_crs_dist6_angle90.p"
-)
-config["preprocess_val"] = os.path.join(
-    root_path,"dataset", "preprocess", "val_crs_dist6_angle90.p"
-)
-config['preprocess_test'] = os.path.join(root_path, "dataset",'preprocess', 'test_test.p')
+
+
+def add_preprocessed_location_to_config(c, data_path_preprocess="preprocess"):
+    c["preprocess_train"] = os.path.join(
+        root_path, "dataset", data_path_preprocess, "train_crs_dist6_angle90.p"
+    )
+    c["preprocess_val"] = os.path.join(
+        root_path, "dataset", data_path_preprocess, "val_crs_dist6_angle90.p"
+    )
+    c['preprocess_test'] = os.path.join(root_path, "dataset", data_path_preprocess,
+                                             'test_test.p')
+
+add_preprocessed_location_to_config(config)
+
 
 """Model"""
 config["rot_aug"] = False

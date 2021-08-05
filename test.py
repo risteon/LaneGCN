@@ -15,6 +15,8 @@
 
 import argparse
 import os
+import numpy as np
+
 os.umask(0)
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -29,7 +31,9 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 
 from data import ArgoTestDataset
+from data_synthetic import SyntheticDataset
 from utils import Logger, load_pretrain
+from preprocess_data import preprocess, to_long, gpu
 
 
 root_path = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +52,7 @@ parser.add_argument(
 parser.add_argument(
     "--weight", default="", type=str, metavar="WEIGHT", help="checkpoint path"
 )
+parser.add_argument("--synthetic", default=False, action="store_true")
 
 
 def main():
@@ -55,6 +60,10 @@ def main():
     args = parser.parse_args()
     model = import_module(args.model)
     config, _, collate_fn, net, loss, post_process, opt = model.get_model()
+
+    # online preprocessing
+    config['cross_dist'] = 6
+    config['cross_angle'] = 0.5 * np.pi
 
     # load pretrain model
     ckpt_path = args.weight
@@ -65,7 +74,14 @@ def main():
     net.eval()
 
     # Data loader for evaluation
-    dataset = ArgoTestDataset(args.split, config, train=False)
+    config["preprocess"] = False
+
+    if not args.synthetic:
+        dataset = ArgoTestDataset(
+            args.split, config, train=False, online_preprocess=True
+        )
+    else:
+        dataset = SyntheticDataset(args.split, config, train=False)
     data_loader = DataLoader(
         dataset,
         batch_size=config["val_batch_size"],
@@ -81,6 +97,7 @@ def main():
     cities = {}
     for ii, data in tqdm(enumerate(data_loader)):
         data = dict(data)
+
         with torch.no_grad():
             output = net(data)
             results = [x[0:1].detach().cpu().numpy() for x in output["reg"]]
@@ -91,18 +108,19 @@ def main():
 
     # save for further visualization
     res = dict(
-        preds = preds,
-        gts = gts,
-        cities = cities,
+        preds=preds,
+        gts=gts,
+        cities=cities,
     )
     # torch.save(res,f"{config['save_dir']}/results.pkl")
-    
+
     # evaluate or submit
     if args.split == "val":
         # for val set: compute metric
         from argoverse.evaluation.eval_forecasting import (
             compute_forecasting_metrics,
         )
+
         # Max #guesses (K): 6
         _ = compute_forecasting_metrics(preds, gts, cities, 6, 30, 2)
         # Max #guesses (K): 1
@@ -110,8 +128,13 @@ def main():
     else:
         # for test set: save as h5 for submission in evaluation server
         from argoverse.evaluation.competition_util import generate_forecasting_h5
-        generate_forecasting_h5(preds, f"{config['save_dir']}/submit.h5")  # this might take awhile
-    import ipdb;ipdb.set_trace()
+
+        generate_forecasting_h5(
+            preds, f"{config['save_dir']}/submit.h5"
+        )  # this might take awhile
+    import ipdb
+
+    ipdb.set_trace()
 
 
 if __name__ == "__main__":
