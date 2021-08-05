@@ -372,17 +372,20 @@ class Scene:
 
         # trajs should always have 20 steps (= 2s at 10 Hz) history
         # use t_pred to keep (t_pred - 20 : t_pred) steps for every agent
-        n_states = 20
+        n_states_past = 20
+        n_states_future = 30
         for agent_id, agent in self.agents.items():
 
-            agent_begin = t_pred - agent.time_range[0] - n_states
+            agent_begin = t_pred - agent.time_range[0] - n_states_past
             if agent_begin < 0:
                 raise ValueError("Not enough states for agent.")
-            if agent_begin + n_states >= agent.time_range[1]:
+            if agent_begin + n_states_past >= agent.time_range[1]:
                 raise ValueError("Not enough states for agent.")
 
             for i, state in enumerate(
-                agent.states_dense[agent_begin : agent_begin + n_states]
+                agent.states_dense[
+                    agent_begin : agent_begin + n_states_past + n_states_future
+                ]
             ):
 
                 data_point = pd.Series(

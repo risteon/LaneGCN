@@ -55,9 +55,7 @@ parser.add_argument(
 parser.add_argument("--synthetic", default=False, action="store_true")
 
 
-def main():
-    # Import all settings for experiment.
-    args = parser.parse_args()
+def forward_pass(args):
     model = import_module(args.model)
     config, _, collate_fn, net, loss, post_process, opt = model.get_model()
 
@@ -92,19 +90,43 @@ def main():
     )
 
     # begin inference
-    preds = {}
+    outputs = {}
     gts = {}
+    hist = {}
     cities = {}
     for ii, data in tqdm(enumerate(data_loader)):
         data = dict(data)
 
         with torch.no_grad():
             output = net(data)
-            results = [x[0:1].detach().cpu().numpy() for x in output["reg"]]
-        for i, (argo_idx, pred_traj) in enumerate(zip(data["argo_id"], results)):
-            preds[argo_idx] = pred_traj.squeeze()
-            cities[argo_idx] = data["city"][i]
-            gts[argo_idx] = data["gt_preds"][i][0] if "gt_preds" in data else None
+
+            for i, (argo_idx, output_reg, output_cls) in enumerate(zip(data["argo_id"], output["reg"], output["cls"])):
+                oreg = [x.detach().cpu().numpy() for x in output_reg]
+                ocls = [x.detach().cpu().numpy() for x in output_cls]
+                # todo
+                try:
+                    hist[argo_idx] = [x.detach().cpu().numpy()[:20] for x in data["trajs"][i]]
+                except KeyError:
+                    pass
+                outputs[argo_idx] = (oreg, ocls)
+                cities[argo_idx] = data["city"][i]
+                gts[argo_idx] = data["gt_preds"][i].detach().cpu().numpy() if "gt_preds" in data else None
+
+    return outputs, gts, hist, cities
+
+
+def main():
+    # Import all settings for experiment.
+    args = parser.parse_args()
+
+    outputs, gts, cities = forward_pass(args)
+
+    preds = {}
+    for argo_idx, (output_reg, output_cls) in outputs.items():
+        pred_traj = output_reg[0]
+        preds[argo_idx] = pred_traj
+
+    gts = {k: v[0] for k, v in gts.items()}
 
     # save for further visualization
     res = dict(
