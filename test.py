@@ -78,7 +78,7 @@ def main():
 
     if not args.synthetic:
         dataset = ArgoTestDataset(
-            args.split, config, train=False, online_preprocess=True
+            args.split, config, train=False, online_preprocess=not config["preprocess"]
         )
     else:
         dataset = SyntheticDataset(args.split, config, train=False)

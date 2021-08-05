@@ -122,7 +122,6 @@ def preprocess(graph, cross_dist, cross_angle=None):
         right_mask = mask.logical_not()
 
     pre = graph['pre_pairs'].new().float().resize_(num_lanes, num_lanes).zero_()
-    # problem if pre_pairs is empty ?
     pre[graph['pre_pairs'][:, 0], graph['pre_pairs'][:, 1]] = 1
     suc = graph['suc_pairs'].new().float().resize_(num_lanes, num_lanes).zero_()
     suc[graph['suc_pairs'][:, 0], graph['suc_pairs'][:, 1]] = 1

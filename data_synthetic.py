@@ -30,6 +30,7 @@ class SyntheticDataset(ArgoDataset):
     def read_argo_data(self, idx):
         scene = Scene.create_simple()
         data = scene.to_lanegcn()
+        data["argo_id"] = f"synthetic_{idx:03d}"
         return data
 
     def get_lane_graph(self, data):
@@ -159,7 +160,12 @@ class SyntheticDataset(ArgoDataset):
                     j = lane_ids.index(nbr_id)
                     right_pairs.append([i, j])
         pre_pairs = np.asarray(pre_pairs, np.int64)
+        if len(pre_pairs) == 0:
+            pre_pairs = np.zeros(shape=(0, 2), dtype=np.int64)
         suc_pairs = np.asarray(suc_pairs, np.int64)
+        if len(suc_pairs) == 0:
+            suc_pairs = np.zeros(shape=(0, 2), dtype=np.int64)
+
         left_pairs = np.asarray(left_pairs, np.int64)
         right_pairs = np.asarray(right_pairs, np.int64)
                     

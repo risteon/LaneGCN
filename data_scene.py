@@ -193,6 +193,7 @@ class Scene:
     def create_lane(self, center_from, center_to):
         lane_id = len(self.lanes)
         self.lanes[lane_id] = Lane(lane_id, center_from, center_to)
+        return lane_id
 
     @classmethod
     def create_follow(cls):
