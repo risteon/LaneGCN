@@ -15,6 +15,8 @@
 
 import argparse
 import os
+
+import matplotlib.colors
 import numpy as np
 
 import pickle
@@ -45,15 +47,17 @@ from scipy.ndimage import rotate
 import seaborn as sns
 
 
-line_colors = ['#375397', '#F05F78', '#80CBE5', '#ABCB51', '#C8B0B0']
+line_colors = ["#375397", "#F05F78", "#80CBE5", "#ABCB51", "#C8B0B0"]
 
-cars = [plt.imread('icons/Car TOP_VIEW 375397.png'),
-        plt.imread('icons/Car TOP_VIEW F05F78.png'),
-        plt.imread('icons/Car TOP_VIEW 80CBE5.png'),
-        plt.imread('icons/Car TOP_VIEW ABCB51.png'),
-        plt.imread('icons/Car TOP_VIEW C8B0B0.png')]
+cars = [
+    plt.imread("icons/Car TOP_VIEW 375397.png"),
+    plt.imread("icons/Car TOP_VIEW F05F78.png"),
+    plt.imread("icons/Car TOP_VIEW 80CBE5.png"),
+    plt.imread("icons/Car TOP_VIEW ABCB51.png"),
+    plt.imread("icons/Car TOP_VIEW C8B0B0.png"),
+]
 
-robot = plt.imread('icons/Car TOP_VIEW ROBOT.png')
+robot = plt.imread("icons/Car TOP_VIEW ROBOT.png")
 
 
 # define parser
@@ -136,7 +140,20 @@ def plot(outputs, gts, hist):
     )
 
 
-def plot_vehicle_nice(ax, predictions, latent, gt_future, hist, dt, max_hl=10, ph=6, map=None, x_min=0, y_min=0, scale=50.0):
+def plot_vehicle_nice(
+    ax,
+    predictions,
+    latent,
+    gt_future,
+    hist,
+    dt,
+    max_hl=10,
+    ph=6,
+    map=None,
+    x_min=0,
+    y_min=0,
+    scale=50.0,
+):
     # prediction_dict, histories_dict, futures_dict = prediction_output_to_trajectories(predictions,
     #                                                                                   dt,
     #                                                                                   max_hl,
@@ -157,7 +174,7 @@ def plot_vehicle_nice(ax, predictions, latent, gt_future, hist, dt, max_hl=10, p
     #     latent_dict = collections.defaultdict(lambda: 0.0)
 
     if map is not None:
-        ax.imshow(map.fdata, origin='lower', alpha=0.5)
+        ax.imshow(map.fdata, origin="lower", alpha=0.5)
 
     edge_width = 2
     circle_edge_width = 0.5
@@ -175,18 +192,36 @@ def plot_vehicle_nice(ax, predictions, latent, gt_future, hist, dt, max_hl=10, p
         history = hist[node_idx]
         future = gt_future[node_idx]
 
-        if True: # node.type.name == 'VEHICLE':
+        if True:  # node.type.name == 'VEHICLE':
             # ax.plot(history[:, 0], history[:, 1], 'ko-', linewidth=1)
 
-            ax.plot(future[4::5, 0],
-                    future[4::5, 1],
-                    'w--o',
-                    linewidth=7,
-                    markersize=4,
-                    zorder=720,
-                    alpha=0.8,
-                    color="green",
-                    path_effects=[pe.Stroke(linewidth=4, foreground='k'), pe.Normal()])
+            # ax.plot(
+            #     future[4::5, 0],
+            #     future[4::5, 1],
+            #     # "--x",
+            #     "x",
+            #     # linewidth=3,
+            #     markersize=15,
+            #     zorder=720,
+            #     alpha=0.8,
+            #     color="green",
+            #     path_effects=[pe.Stroke(linewidth=4, foreground="k"), pe.Normal()],
+            # )
+
+            ax.scatter(
+                future[4::5, 0],
+                future[4::5, 1],
+                s=70.0,
+                c='r',
+                # "--x",
+                marker="x",
+                # linewidth=3,
+                # markersize=15,
+                zorder=720,
+                alpha=1.0,
+                # color="green",
+                # path_effects=[pe.Stroke(linewidth=4, foreground="k"), pe.Normal()],
+            )
 
             # for t in range(predictions.shape[2]):
             #     sns.kdeplot(predictions[0, :, t, 0], predictions[0, :, t, 1],
@@ -197,48 +232,80 @@ def plot_vehicle_nice(ax, predictions, latent, gt_future, hist, dt, max_hl=10, p
             # h = np.arctan2(vel[0, 1], vel[0, 0])
             # todo:
             heading = 0.0
-            r_img = rotate(cars[i % len(cars)], heading * 180 / np.pi,
-                           reshape=True)
+            r_img = rotate(cars[i % len(cars)], heading * 180 / np.pi, reshape=True)
             oi = OffsetImage(r_img, zoom=0.025 * 50.0 / scale, zorder=700)
-            veh_box = AnnotationBbox(oi, (history[-1, 0], history[-1, 1]), frameon=False)
+            veh_box = AnnotationBbox(
+                oi, (history[-1, 0], history[-1, 1]), frameon=False
+            )
             veh_box.zorder = 700
             ax.add_artist(veh_box)
             # ax.text(history[-1, 0], history[-1, 1], f'{latent_prob:.3f}', zorder=720)
 
-
             pred = predictions[node_idx]
             for i, p in enumerate(pred):
-                ax.plot(p[4::5, 0],
-                        p[4::5, 1], 'ko-',
-                        zorder=750,
-                        markersize=3,
-                        linewidth=2, alpha=0.5)
+                ax.plot(
+                    p[4::5, 0],
+                    p[4::5, 1],
+                    "kx-",
+                    zorder=700,
+                    markersize=4,
+                    linewidth=1,
+                    alpha=0.8,
+                )
+
+            # cls is trained for maximum margin, default norm should be best (?)
+            # norm = matplotlib.colors.Normalize(0.0, 1.0, clip=True)
+
+            ax.scatter(
+                pred[:, -1, 0],
+                pred[:, -1, 1],
+                s=80.0,
+                c=latent[node_idx],
+                cmap="coolwarm",
+                norm=None,
+                marker="o",
+                zorder=700,
+                alpha=0.8,
+            )
 
             i += 1
         else:
             # ax.plot(history[:, 0], history[:, 1], 'k--')
 
             for t in range(predictions.shape[2]):
-                sns.kdeplot(predictions[0, :, t, 0], predictions[0, :, t, 1],
-                            ax=ax, shade=True, shade_lowest=False,
-                            color='b', zorder=600, alpha=0.8)
+                sns.kdeplot(
+                    predictions[0, :, t, 0],
+                    predictions[0, :, t, 1],
+                    ax=ax,
+                    shade=True,
+                    shade_lowest=False,
+                    color="b",
+                    zorder=600,
+                    alpha=0.8,
+                )
 
-            ax.plot(future[:, 0],
-                    future[:, 1],
-                    'w--',
-                    zorder=650,
-                    path_effects=[pe.Stroke(linewidth=edge_width, foreground='k'), pe.Normal()])
+            ax.plot(
+                future[:, 0],
+                future[:, 1],
+                "w--",
+                zorder=650,
+                path_effects=[
+                    pe.Stroke(linewidth=edge_width, foreground="k"),
+                    pe.Normal(),
+                ],
+            )
             # Current Node Position
-            circle = plt.Circle((history[-1, 0],
-                                 history[-1, 1]),
-                                node_circle_size,
-                                facecolor='g',
-                                edgecolor='k',
-                                lw=circle_edge_width,
-                                zorder=3)
+            circle = plt.Circle(
+                (history[-1, 0], history[-1, 1]),
+                node_circle_size,
+                facecolor="g",
+                edgecolor="k",
+                lw=circle_edge_width,
+                zorder=3,
+            )
             ax.add_artist(circle)
 
-            ax.text(history[-1, 0], history[-1, 1], f'{latent_prob:.3f}', zorder=720)
+            ax.text(history[-1, 0], history[-1, 1], f"{latent_prob:.3f}", zorder=720)
 
 
 def main():
