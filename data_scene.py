@@ -202,7 +202,7 @@ class Scene:
         class_label = "PassengerCar"
 
         s_follow = cls.ConstantAcc(0.0, 30.0 / 3.6, -0.1)
-        s_lead = cls.ConstantAcc(17.0, 15.0 / 3.6, 0.0)
+        s_lead = cls.ConstantAcc(20.0, 15.0 / 3.6, 0.0)
 
         # two agents, 10 sec straight movement, 10 Hz
         # don't actually need speed and acc (resampled anyway)
@@ -240,6 +240,13 @@ class Scene:
         scene.index_timestamps()
         scene.process_agents()
         scene.finalize()
+
+        # single lane for agent to drive on
+        lane_delta = 10.0
+        scene.create_lane(
+            np.asarray([-lane_delta, 0.0]), np.asarray([s_lead(5.0) + lane_delta, 0.0])
+        )
+
         return scene
 
     @classmethod
