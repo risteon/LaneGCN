@@ -1,6 +1,3 @@
-# Copyright (c) 2020 Uber Technologies, Inc.
-# Please check LICENSE for more detail
-
 
 import numpy as np
 import torch
@@ -58,7 +55,7 @@ class SyntheticDataset(ArgoDataset):
 
         """Get a rectangle area defined by pred_range."""
         x_min, x_max, y_min, y_max = self.config["pred_range"]
-        radius = max(abs(x_min), abs(x_max)) + max(abs(y_min), abs(y_max))
+        # radius = max(abs(x_min), abs(x_max)) + max(abs(y_min), abs(y_max))
 
         # lane_ids = self.am.get_lane_ids_in_xy_bbox(data['orig'][0], data['orig'][1], data['city'], radius)
         # lane_ids = copy.deepcopy(lane_ids)

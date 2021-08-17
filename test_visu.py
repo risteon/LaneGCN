@@ -1,44 +1,8 @@
-# ---------------------------------------------------------------------------
-# Learning Lane Graph Representations for Motion Forecasting
-#
-# Copyright (c) 2020 Uber Technologies, Inc.
-#
-# Licensed under the Uber Non-Commercial License (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at the root directory of this project.
-#
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# Written by Ming Liang, Yun Chen
-# ---------------------------------------------------------------------------
-
 import argparse
-import os
-
-import matplotlib.colors
-import numpy as np
-
-import pickle
-import sys
-from importlib import import_module
-
-import torch
-from torch.utils.data import DataLoader, Sampler
-from torch.utils.data.distributed import DistributedSampler
-from tqdm import tqdm
-
-from data import ArgoTestDataset
-from data_synthetic import SyntheticDataset
-from utils import Logger, load_pretrain
-from preprocess_data import preprocess, to_long, gpu
 
 from test import forward_pass
 import matplotlib.pyplot as plt
 
-import collections
-import os
-import json
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
@@ -96,7 +60,7 @@ def make_figure(box_coords, figsize):
 
 
 def plot(outputs, gts, hist):
-    left, bottom = 0.0, 0.0
+    left, bottom = 0.0, -15.0
     delta = 50.0
 
     my_patch = (
